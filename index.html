@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anatoly Coin</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --main-gold: #f39c12;
+            --dark-bg: #0a0a0a;
+            --panel-bg: #1c1c1c;
+            --bronze: #cd7f32;
+            --silver: #c0c0c0;
+            --gold: #ffd700;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .screen {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .active { display: flex; }
+
+        .score-container {
+            text-align: center;
+            margin-top: 40px;
+            position: relative;
+        }
+
+        .currency-label {
+            color: #888;
+            font-size: 18px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .currency-label:hover {
+            color: var(--main-gold);
+        }
+
+        .balance-value {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .coin-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .main-coin {
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle, var(--main-gold), #d35400);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 120px;
+            font-weight: bold;
+            border: 10px solid #e67e22;
+            box-shadow: 0 0 40px rgba(243, 156, 18, 0.4);
+            cursor: pointer;
+            transition: transform 0.05s;
+            touch-action: manipulation;
+        }
+
+        .main-coin:active {
+            transform: scale(0.92);
+        }
+
+        .energy-section {
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 100px;
+        }
+
+        .energy-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .energy-bar {
+            width: 100%;
+            height: 12px;
+            background: #333;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        #energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f1c40f, #f39c12);
+            width: 100%;
+            transition: width 0.2s;
+        }
+
+        .menu-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .menu-item {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .menu-item:active { opacity: 0.8; }
+        .item-info h4 { margin: 0; font-size: 16px; }
+        .item-info p { margin: 5px 0 0; color: #aaa; font-size: 13px; }
+        .price { color: var(--main-gold); font-weight: bold; }
+
+        .nav-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            background: rgba(28, 28, 28, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            border-radius: 20px;
+            border: 1px solid #333;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .nav-btn.active-nav { color: white; }
+
+        .tap-number {
+            position: absolute;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 100;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-120px); }
+        }
+        
+        .save-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 1.7s forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
+        
+        /* Стили для раздела Топы */
+        .leaderboard {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+        
+        .leaderboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .refresh-btn {
+            background: var(--main-gold);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            background: var(--panel-bg);
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: transform 0.2s;
+        }
+        
+        .leaderboard-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .rank {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .rank-1 { background: var(--gold); color: #000; }
+        .rank-2 { background: var(--silver); color: #000; }
+        .rank-3 { background: var(--bronze); color: #000; }
+        .rank-other { background: #333; color: white; }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .player-score {
+            color: var(--main-gold);
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .player-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .referral-section {
+            background: linear-gradient(45deg, #1a2980, #26d0ce);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .referral-code {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            text-align: center;
+            margin: 10px 0;
+            cursor: pointer;
+            word-break: break-all;
+        }
+        
+        .referral-code:active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .daily-reward {
+            background: linear-gradient(45deg, #f46b45, #eea849);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .reward-btn {
+            background: white;
+            color: #f46b45;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        
+        .reward-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .reward-timer {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 8px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--main-gold);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        /* Стили для админ-панели */
+        .admin-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel-bg);
+            border: 2px solid var(--main-gold);
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+            display: none;
+        }
+        
+        .admin-panel.active {
+            display: block;
+        }
+        
+        .admin-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 999;
+            display: none;
+        }
+        
+        .admin-overlay.active {
+            display: block;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .admin-input-group {
+            margin-bottom: 15px;
+        }
+        
+        .admin-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .admin-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .admin-btn:hover {
+            background: linear-gradient(45deg, #229954, #27ae60);
+        }
+        
+        .admin-btns-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .admin-btn-small {
+            padding: 10px;
+            background: var(--main-gold);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .admin-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        /* Стили для кода активации */
+        .code-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel-bg);
+            border: 2px solid #3498db;
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 350px;
+            z-index: 1001;
+            box-shadow: 0 0 30px rgba(52, 152, 219, 0.3);
+            display: none;
+        }
+        
+        .code-modal.active {
+            display: block;
+        }
+        
+        .code-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #3498db;
+            background: #2a2a2a;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 2px;
+            margin: 20px 0;
+        }
+        
+        .code-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="main-screen" class="screen active">
+        <div class="score-container">
+            <div class="currency-label" onclick="showAdminCodeModal()">ВАЛЮТА АНАТОЛИЙ</div>
+            <div class="balance-value" id="balance">0</div>
+        </div>
+
+        <div class="coin-wrapper">
+            <div class="main-coin" id="coin">А</div>
+        </div>
+
+        <div class="energy-section">
+            <div class="energy-info">
+                <span>⚡ Энергия</span>
+                <span id="energy-text">1000 / 1000</span>
+            </div>
+            <div class="energy-bar">
+                <div id="energy-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="boosts-screen" class="screen">
+        <h2>Магазин Бустов</h2>
+        <div class="menu-list">
+            <div class="menu-item" onclick="buyMultitap()">
+                <div class="item-info">
+                    <h4>Multitap</h4>
+                    <p>+1 к клику</p>
+                </div>
+                <div class="price" id="multitap-price">100</div>
+            </div>
+            <div class="menu-item" onclick="buyEnergyLimit()">
+                <div class="item-info">
+                    <h4>Energy Limit</h4>
+                    <p>+500 к макс. энергии</p>
+                </div>
+                <div class="price" id="energy-price">500</div>
+            </div>
+            <div class="menu-item" onclick="buyAutoClicker()">
+                <div class="item-info">
+                    <h4>Auto Clicker</h4>
+                    <p>Авто-клик 1/сек</p>
+                </div>
+                <div class="price" id="autoclicker-price">2000</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tasks-screen" class="screen">
+        <h2>Задания</h2>
+        <div class="menu-list">
+            <div class="menu-item" onclick="completeTask(1000, this, 'https://t.me/podilcliker')">
+                <div class="item-info">
+                    <h4>Подписка на Podil Cliker</h4>
+                    <p>Вступи в группу и получи бонус</p>
+                </div>
+                <div class="price">+1000 Анатолий</div>
+            </div>
+            <div class="menu-item" onclick="completeTask(500, this)">
+                <div class="item-info">
+                    <h4>100 тапов за день</h4>
+                    <p id="taps-progress">Прогресс: 0/100</p>
+                </div>
+                <div class="price">+500 Анатолий</div>
+            </div>
+            <div class="menu-item" onclick="completeTask(2000, this)">
+                <div class="item-info">
+                    <h4>Пригласи друга</h4>
+                    <p>Друг получит бонус 1000 монет</p>
+                </div>
+                <div class="price">+2000 Анатолий</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="top-screen" class="screen">
+        <h2>🏆 Топ Игроков</h2>
+        
+        <div class="leaderboard">
+            <div class="leaderboard-header">
+                <h3 style="margin: 0;">Глобальный рейтинг</h3>
+                <button class="refresh-btn" onclick="loadLeaderboard()">🔄 Обновить</button>
+            </div>
+            
+            <div id="leaderboard-list">
+                <!-- Сюда загрузится топ игроков -->
+            </div>
+        </div>
+        
+        <div class="referral-section">
+            <h4 style="margin: 0 0 10px 0;">👥 Реферальная система</h4>
+            <p style="font-size: 12px; margin: 0 0 10px 0;">Пригласи друга по ссылке и получай 10% от его дохода!</p>
+            <div class="referral-code" onclick="copyReferralCode()" id="referral-code">
+                Загрузка...
+            </div>
+            <p style="font-size: 11px; color: rgba(255,255,255,0.7); margin: 5px 0 0 0;">
+                Приглашено друзей: <span id="referral-count">0</span>
+            </p>
+        </div>
+        
+        <div class="daily-reward">
+            <h4 style="margin: 0 0 10px 0;">🎁 Ежедневная награда</h4>
+            <p style="font-size: 14px; margin: 0 0 10px 0;">Зайди завтра и получи бонус!</p>
+            <button class="reward-btn" onclick="claimDailyReward()" id="daily-reward-btn">
+                Забрать награду
+            </button>
+            <div class="reward-timer" id="reward-timer"></div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-taps">0</div>
+                <div class="stat-label">Всего тапов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-boosts">0</div>
+                <div class="stat-label">Куплено бустов</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="session-earned">0</div>
+                <div class="stat-label">Заработано за сессию</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="player-rank">#-</div>
+                <div class="stat-label">Ваш ранг</div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="nav-bar">
+        <div class="nav-btn active-nav" onclick="showScreen('main-screen', this)">
+            <span>🔘</span><span>Тап</span>
+        </div>
+        <div class="nav-btn" onclick="showScreen('tasks-screen', this)">
+            <span>📋</span><span>Задания</span>
+        </div>
+        <div class="nav-btn" onclick="showScreen('boosts-screen', this)">
+            <span>🚀</span><span>Бусты</span>
+        </div>
+        <div class="nav-btn" onclick="showScreen('top-screen', this)">
+            <span>🏆</span><span>Топы</span>
+        </div>
+    </nav>
+</div>
+
+<!-- Оверлей для модальных окон -->
+<div class="admin-overlay" id="adminOverlay" onclick="closeAdminPanel()"></div>
+
+<!-- Модальное окно для ввода кода админа -->
+<div class="code-modal" id="codeModal">
+    <h2 style="text-align: center; margin: 0 0 15px 0;">🔐 Активация админ-панели</h2>
+    <p style="text-align: center; color: #aaa; font-size: 14px; margin-bottom: 10px;">
+        Введите код администратора для доступа к панели управления
+    </p>
+    <input type="text" class="code-input" id="adminCodeInput" placeholder="Введите код..." maxlength="20">
+    <button class="code-submit" onclick="checkAdminCode()">Подтвердить</button>
+</div>
+
+<!-- Панель администратора -->
+<div class="admin-panel" id="adminPanel">
+    <div class="admin-header">
+        <h2 style="margin: 0;">⚙️ Панель Администратора</h2>
+        <button class="admin-close" onclick="closeAdminPanel()">×</button>
+    </div>
+    
+    <div class="admin-input-group">
+        <input type="number" class="admin-input" id="adminCoinsAmount" placeholder="Количество монет">
+        <button class="admin-btn" onclick="addAdminCoins()">Добавить монеты</button>
+    </div>
+    
+    <div class="admin-btns-grid">
+        <button class="admin-btn-small" onclick="addCoins(1000)">+1,000</button>
+        <button class="admin-btn-small" onclick="addCoins(10000)">+10,000</button>
+        <button class="admin-btn-small" onclick="addCoins(100000)">+100,000</button>
+        <button class="admin-btn-small" onclick="addCoins(1000000)">+1,000,000</button>
+    </div>
+    
+    <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+        <button class="admin-btn" onclick="resetEnergy()" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+            ♻️ Восстановить энергию
+        </button>
+        <button class="admin-btn" onclick="resetGame()" style="background: linear-gradient(45deg, #e74c3c, #c0392b); margin-top: 10px;">
+            🗑️ Сбросить игру
+        </button>
+    </div>
+    
+    <div style="margin-top: 15px; font-size: 12px; color: #888; text-align: center;">
+        Текущий баланс: <span id="currentBalanceAdmin">0</span> монет
+    </div>
+</div>
+
+<script>
+    let state = {
+        balance: 0,
+        energy: 1000,
+        maxEnergy: 1000,
+        clickValue: 1,
+        multitapCost: 100,
+        energyCost: 500,
+        autoclickerCost: 2000,
+        autoclickerLevel: 0,
+        version: "1.2",
+        totalTaps: 0,
+        totalEarned: 0,
+        sessionStart: Date.now(),
+        referrals: [],
+        referralCode: null,
+        dailyRewardLastClaim: 0,
+        dailyRewardStreak: 0,
+        isAdmin: false
+    };
+
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    
+    // Генерируем уникальный ID пользователя если его нет
+    if (!tg.initDataUnsafe.user) {
+        tg.initDataUnsafe.user = {
+            id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+            first_name: "Игрок",
+            username: "player"
+        };
+    }
+    
+    const user = tg.initDataUnsafe.user;
+    const userId = user.id;
+    
+    // Инициализация Cloud Storage
+    tg.CloudStorage.setInitParams({'count': 1});
+
+    const balanceEl = document.getElementById('balance');
+    const energyFill = document.getElementById('energy-fill');
+    const energyText = document.getElementById('energy-text');
+    const coin = document.getElementById('coin');
+
+    // Загрузка сохраненных данных
+    function loadGameState() {
+        tg.CloudStorage.getItems(['game_state', 'leaderboard'], (err, result) => {
+            if (!err) {
+                if (result && result.game_state) {
+                    try {
+                        const savedState = JSON.parse(result.game_state);
+                        if (savedState.version === state.version) {
+                            Object.assign(state, savedState);
+                            updateUI();
+                            showSaveNotification('Игра загружена!');
+                        }
+                    } catch (e) {
+                        console.error('Ошибка загрузки:', e);
+                    }
+                }
+                
+                // Генерируем реферальный код если его нет
+                if (!state.referralCode) {
+                    state.referralCode = generateReferralCode();
+                    autoSave();
+                }
+                
+                updateReferralUI();
+                checkDailyReward();
+                loadLeaderboard();
+                
+                // Проверяем права администратора
+                if (state.isAdmin) {
+                    document.querySelector('.currency-label').innerHTML = 
+                        'ВАЛЮТА АНАТОЛИЙ <span class="admin-badge">ADMIN</span>';
+                }
+            }
+        });
+    }
+
+    // Показать модальное окно для ввода кода админа
+    function showAdminCodeModal() {
+        document.getElementById('codeModal').classList.add('active');
+        document.getElementById('adminOverlay').classList.add('active');
+        document.getElementById('adminCodeInput').focus();
+    }
+
+    // Проверить код администратора
+    function checkAdminCode() {
+        const codeInput = document.getElementById('adminCodeInput');
+        const code = codeInput.value.trim();
+        
+        if (code === 'carapizzz1399') {
+            state.isAdmin = true;
+            showAdminPanel();
+            showSaveNotification('✅ Админ-панель активирована!');
+            
+            // Обновляем заголовок
+            document.querySelector('.currency-label').innerHTML = 
+                'ВАЛЮТА АНАТОЛИЙ <span class="admin-badge">ADMIN</span>';
+            
+            autoSave();
+        } else {
+            showSaveNotification('❌ Неверный код!');
+            codeInput.value = '';
+            codeInput.focus();
+        }
+    }
+
+    // Показать панель администратора
+    function showAdminPanel() {
+        closeAdminCodeModal();
+        document.getElementById('adminPanel').classList.add('active');
+        document.getElementById('adminOverlay').classList.add('active');
+        document.getElementById('currentBalanceAdmin').textContent = state.balance.toLocaleString();
+    }
+
+    // Закрыть модальное окно с кодом
+    function closeAdminCodeModal() {
+        document.getElementById('codeModal').classList.remove('active');
+        document.getElementById('adminOverlay').classList.remove('active');
+    }
+
+    // Закрыть панель администратора
+    function closeAdminPanel() {
+        document.getElementById('adminPanel').classList.remove('active');
+        document.getElementById('adminOverlay').classList.remove('active');
+        document.getElementById('codeModal').classList.remove('active');
+    }
+
+    // Добавить монеты через админ-панель
+    function addAdminCoins() {
+        if (!state.isAdmin) {
+            showSaveNotification('❌ Нет прав администратора!');
+            return;
+        }
+        
+        const amountInput = document.getElementById('adminCoinsAmount');
+        const amount = parseInt(amountInput.value);
+        
+        if (isNaN(amount) || amount <= 0) {
+            showSaveNotification('❌ Введите корректное количество!');
+            return;
+        }
+        
+        state.balance += amount;
+        state.totalEarned += amount;
+        updateUI();
+        autoSave();
+        
+        amountInput.value = '';
+        document.getElementById('currentBalanceAdmin').textContent = state.balance.toLocaleString();
+        showSaveNotification(`✅ Добавлено ${amount.toLocaleString()} монет!`);
+    }
+
+    // Быстрое добавление монет
+    function addCoins(amount) {
+        if (!state.isAdmin) {
+            showSaveNotification('❌ Нет прав администратора!');
+            return;
+        }
+        
+        state.balance += amount;
+        state.totalEarned += amount;
+        updateUI();
+        autoSave();
+        
+        document.getElementById('adminCoinsAmount').value = '';
+        document.getElementById('currentBalanceAdmin').textContent = state.balance.toLocaleString();
+        showSaveNotification(`✅ Добавлено ${amount.toLocaleString()} монет!`);
+    }
+
+    // Восстановить энергию
+    function resetEnergy() {
+        if (!state.isAdmin) {
+            showSaveNotification('❌ Нет прав администратора!');
+            return;
+        }
+        
+        state.energy = state.maxEnergy;
+        updateUI();
+        autoSave();
+        showSaveNotification('✅ Энергия восстановлена!');
+    }
+
+    // Сбросить игру
+    function resetGame() {
+        if (!state.isAdmin) {
+            showSaveNotification('❌ Нет прав администратора!');
+            return;
+        }
+        
+        if (confirm('Вы уверены, что хотите сбросить всю игру? Это действие нельзя отменить!')) {
+            state = {
+                balance: 0,
+                energy: 1000,
+                maxEnergy: 1000,
+                clickValue: 1,
+                multitapCost: 100,
+                energyCost: 500,
+                autoclickerCost: 2000,
+                autoclickerLevel: 0,
+                version: "1.2",
+                totalTaps: 0,
+                totalEarned: 0,
+                sessionStart: Date.now(),
+                referrals: [],
+                referralCode: state.referralCode || generateReferralCode(),
+                dailyRewardLastClaim: 0,
+                dailyRewardStreak: 0,
+                isAdmin: true
+            };
+            
+            updateUI();
+            autoSave();
+            showSaveNotification('🔄 Игра сброшена!');
+            closeAdminPanel();
+        }
+    }
+
+    // Генерация реферального кода
+    function generateReferralCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 8; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    // Копирование реферального кода
+    function copyReferralCode() {
+        const code = `https://t.me/share/url?url=Присоединяйся к Anatoly Coin!&text=Играй в Anatoly Coin! Используй мой код: ${state.referralCode} для бонуса!`;
+        navigator.clipboard.writeText(code).then(() => {
+            showSaveNotification('Ссылка скопирована!');
+        });
+    }
+
+    // Проверка ежедневной награды
+    function checkDailyReward() {
+        const now = Date.now();
+        const lastClaim = state.dailyRewardLastClaim;
+        const oneDay = 24 * 60 * 60 * 1000;
+        
+        const btn = document.getElementById('daily-reward-btn');
+        const timer = document.getElementById('reward-timer');
+        
+        if (now - lastClaim < oneDay) {
+            // Награда уже получена сегодня
+            btn.disabled = true;
+            btn.textContent = 'Уже получено';
+            
+            const nextClaim = lastClaim + oneDay;
+            const timeLeft = nextClaim - now;
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            
+            timer.textContent = `Следующая награда через: ${hours}ч ${minutes}м`;
+        } else if (now - lastClaim > oneDay * 2) {
+            // Пропустил день - сброс серии
+            state.dailyRewardStreak = 0;
+        }
+        
+        btn.textContent = `Забрать (${state.dailyRewardStreak + 1} день)`;
+    }
+
+    // Получение ежедневной награды
+    function claimDailyReward() {
+        const reward = 1000 * (state.dailyRewardStreak + 1);
+        state.balance += reward;
+        state.dailyRewardLastClaim = Date.now();
+        state.dailyRewardStreak++;
+        
+        updateUI();
+        autoSave();
+        checkDailyReward();
+        showSaveNotification(`🎁 Получено ${reward.toLocaleString()} монет!`);
+    }
+
+    // Загрузка лидерборда
+    function loadLeaderboard() {
+        tg.CloudStorage.getItems(['leaderboard'], (err, result) => {
+            if (!err && result && result.leaderboard) {
+                try {
+                    const leaderboard = JSON.parse(result.leaderboard);
+                    displayLeaderboard(leaderboard);
+                } catch (e) {
+                    console.error('Ошибка загрузки лидерборда:', e);
+                    // Создаем тестовый лидерборд если нет данных
+                    createSampleLeaderboard();
+                }
+            } else {
+                createSampleLeaderboard();
+            }
+        });
+    }
+
+    // Создание тестового лидерборда
+    function createSampleLeaderboard() {
+        const samplePlayers = [
+            { id: 1, name: "Анатолий", score: 1500000, avatar: "А" },
+            { id: 2, name: user.first_name, score: state.totalEarned, avatar: user.first_name[0] },
+            { id: 3, name: "Кликер Про", score: 850000, avatar: "К" },
+            { id: 4, name: "Тап Мастер", score: 720000, avatar: "Т" },
+            { id: 5, name: "Золотой Рука", score: 580000, avatar: "З" },
+            { id: 6, name: "Бустер", score: 450000, avatar: "Б" },
+            { id: 7, name: "Новичок", score: 120000, avatar: "Н" }
+        ];
+        
+        // Сортируем по убыванию очков
+        samplePlayers.sort((a, b) => b.score - a.score);
+        displayLeaderboard(samplePlayers);
+        
+        // Обновляем ранг пользователя
+        const userRank = samplePlayers.findIndex(p => p.id === 2) + 1;
+        document.getElementById('player-rank').textContent = `#${userRank}`;
+    }
+
+    // Отображение лидерборда
+    function displayLeaderboard(players) {
+        const leaderboardList = document.getElementById('leaderboard-list');
+        leaderboardList.innerHTML = '';
+        
+        players.slice(0, 10).forEach((player, index) => {
+            const rankClass = `rank rank-${index < 3 ? index + 1 : 'other'}`;
+            const item = document.createElement('div');
+            item.className = 'leaderboard-item';
+            item.innerHTML = `
+                <div class="${rankClass}">${index + 1}</div>
+                <div class="player-info">
+                    <div class="player-name">${player.name}</div>
+                    <div style="font-size: 11px; color: #888;">${player.id === 2 ? 'Вы' : ''}</div>
+                </div>
+                <div class="player-score">${player.score.toLocaleString()}</div>
+                <div class="player-avatar">${player.avatar}</div>
+            `;
+            leaderboardList.appendChild(item);
+        });
+    }
+
+    // Обновление UI рефералов
+    function updateReferralUI() {
+        document.getElementById('referral-code').textContent = `Код: ${state.referralCode}`;
+        document.getElementById('referral-count').textContent = state.referrals.length;
+        
+        // Обновляем статистику
+        document.getElementById('total-taps').textContent = state.totalTaps.toLocaleString();
+        document.getElementById('total-boosts').textContent = (state.clickValue - 1 + state.autoclickerLevel).toLocaleString();
+        document.getElementById('session-earned').textContent = calculateSessionEarned().toLocaleString();
+    }
+
+    // Расчет заработка за сессию
+    function calculateSessionEarned() {
+        return Math.floor((Date.now() - state.sessionStart) / 1000) * 10;
+    }
+
+    // Сохранение данных
+    function saveGameState() {
+        const stateString = JSON.stringify(state);
+        tg.CloudStorage.setItem('game_state', stateString, (err, result) => {
+            if (!err) {
+                console.log('Игра сохранена');
+            } else {
+                console.error('Ошибка сохранения:', err);
+                // Резервное сохранение в localStorage
+                try {
+                    localStorage.setItem('anatoly_coin_backup', stateString);
+                } catch (e) {
+                    console.error('Ошибка резервного сохранения:', e);
+                }
+            }
+        });
+    }
+
+    // Автосохранение
+    function autoSave() {
+        saveGameState();
+        updateReferralUI();
+        showSaveNotification('Сохранено');
+    }
+
+    // Уведомление
+    function showSaveNotification(text) {
+        const existing = document.querySelector('.save-notification');
+        if (existing) existing.remove();
+        
+        const notification = document.createElement('div');
+        notification.className = 'save-notification';
+        notification.innerHTML = `💾 ${text}`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 2000);
+    }
+
+    coin.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleTap(touch.clientX, touch.clientY);
+    });
+
+    function handleTap(x, y) {
+        if (state.energy >= state.clickValue) {
+            state.balance += state.clickValue;
+            state.energy -= state.clickValue;
+            state.totalTaps++;
+            state.totalEarned += state.clickValue;
+            
+            updateUI();
+            createAnim(x, y);
+            tg.HapticFeedback.impactOccurred('medium');
+            autoSave();
+            
+            // Обновляем прогресс задания
+            updateTaskProgress();
+        }
+    }
+
+    // Обновление прогресса задания
+    function updateTaskProgress() {
+        const progress = document.getElementById('taps-progress');
+        if (progress) {
+            progress.textContent = `Прогресс: ${state.totalTaps % 100}/100`;
+        }
+    }
+
+    function createAnim(x, y) {
+        const el = document.createElement('div');
+        el.className = 'tap-number';
+        el.innerText = `+${state.clickValue}`;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 800);
+    }
+
+    // Автокликер
+    function buyAutoClicker() {
+        if (state.balance >= state.autoclickerCost) {
+            state.balance -= state.autoclickerCost;
+            state.autoclickerLevel++;
+            state.autoclickerCost *= 2;
+            document.getElementById('autoclicker-price').innerText = state.autoclickerCost;
+            updateUI();
+            tg.HapticFeedback.notificationOccurred('success');
+            autoSave();
+            
+            // Запускаем автокликер если это первый уровень
+            if (state.autoclickerLevel === 1) {
+                startAutoClicker();
+            }
+        }
+    }
+
+    // Запуск автокликера
+    function startAutoClicker() {
+        setInterval(() => {
+            if (state.energy >= state.clickValue) {
+                state.balance += state.clickValue;
+                state.energy -= state.clickValue;
+                state.totalEarned += state.clickValue;
+                updateUI();
+            }
+        }, 1000);
+    }
+
+    function buyMultitap() {
+        if (state.balance >= state.multitapCost) {
+            state.balance -= state.multitapCost;
+            state.clickValue += 1;
+            state.multitapCost *= 2;
+            document.getElementById('multitap-price').innerText = state.multitapCost;
+            updateUI();
+            tg.HapticFeedback.notificationOccurred('success');
+            autoSave();
+        }
+    }
+
+    function buyEnergyLimit() {
+        if (state.balance >= state.energyCost) {
+            state.balance -= state.energyCost;
+            state.maxEnergy += 500;
+            state.energy += 500;
+            state.energyCost *= 2;
+            document.getElementById('energy-price').innerText = state.energyCost;
+            updateUI();
+            tg.HapticFeedback.notificationOccurred('success');
+            autoSave();
+        }
+    }
+
+    function completeTask(reward, el, url) {
+        state.balance += reward;
+        state.totalEarned += reward;
+        updateUI();
+        
+        if (el) {
+            el.style.display = 'none';
+        }
+        
+        if (url) {
+            tg.openTelegramLink(url);
+        }
+        
+        tg.HapticFeedback.notificationOccurred('success');
+        autoSave();
+        showSaveNotification(`+${reward.toLocaleString()} монет!`);
+    }
+
+    function updateUI() {
+        balanceEl.innerText = state.balance.toLocaleString();
+        const energyPerc = (state.energy / state.maxEnergy) * 100;
+        energyFill.style.width = `${energyPerc}%`;
+        energyText.innerText = `${Math.floor(state.energy)} / ${state.maxEnergy}`;
+        
+        // Обновляем статистику
+        updateReferralUI();
+    }
+
+    // Автосохранение каждые 30 секунд
+    setInterval(() => {
+        autoSave();
+    }, 30000);
+
+    // Сохранение при закрытии/сворачивании
+    tg.onEvent('viewportChanged', () => {
+        autoSave();
+    });
+
+    // Восстановление энергии
+    setInterval(() => {
+        if (state.energy < state.maxEnergy) {
+            state.energy = Math.min(state.energy + 1.5, state.maxEnergy);
+            updateUI();
+        }
+    }, 1000);
+
+    function showScreen(screenId, btn) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
+        btn.classList.add('active-nav');
+        
+        // При открытии экрана топов обновляем лидерборд
+        if (screenId === 'top-screen') {
+            loadLeaderboard();
+        }
+    }
+
+    // Обработка нажатия Enter в поле ввода кода
+    document.getElementById('adminCodeInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            checkAdminCode();
+        }
+    });
+
+    // Загружаем игру при запуске
+    loadGameState();
+    updateUI();
+</script>
+</body>
+</html>
